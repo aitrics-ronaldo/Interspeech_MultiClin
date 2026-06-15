@@ -1,0 +1,38 @@
+# Dependencies for the MultiClin ASR evaluation code, pinned to the environment
+# used for the paper (CUDA 12.8). Install everything in a single pass:
+#
+#   pip install -r requirements.txt
+#
+# PyTorch is pulled from the official CUDA 12.8 index via the --extra-index-url
+# line below, so torch is resolved correctly regardless of install order. For a
+# different CUDA/CPU build, change the index URL and the +cu128 suffixes.
+
+--extra-index-url https://download.pytorch.org/whl/cu128
+
+# --- PyTorch (CUDA 12.8) ---
+torch==2.8.0+cu128
+torchaudio==2.8.0+cu128
+
+# --- Numerical / data ---
+numpy==2.4.6
+pandas==3.0.3
+tqdm==4.68.2
+
+# --- Metrics ---
+jiwer==4.0.0
+
+# --- Audio I/O ---
+librosa==0.11.0
+soundfile==0.14.0
+pydub==0.25.1
+
+# --- Dataset download ---
+gdown
+
+# --- Model backends ---
+transformers==5.5.0
+accelerate==1.14.0
+faster-whisper==1.2.1     # eval_whisper.py
+ctranslate2==4.8.0        # faster-whisper backend
+qwen-asr==0.0.6           # eval_qwen3asr.py
+google-genai==2.8.0       # eval_gemini.py

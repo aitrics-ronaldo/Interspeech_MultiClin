@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Models / caches
+hf_model/
+merged_model/
+
+# Data / outputs (downloaded or generated locally, not committed)
+results/
+temp_audio.wav
+
+# Dataset (downloaded automatically via gdown)
+interspeech26_multiscript_dataset/
+*.zip
