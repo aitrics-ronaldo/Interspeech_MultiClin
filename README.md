@@ -121,10 +121,13 @@ selected as the reference for that entity. See `clean_tags_by_priority` /
 ## Citation
 
 ```bibtex
-@inproceedings{seo2026multiclin,
-  title={When Multiple Scripts Matter: Evaluating ASR in Clinical Settings},
-  author={Seo, Jean and Kim, Minkyu and Lee, Jeonguk and Jung, Jisoo and Han, Wooseok and Yang, Eunho},
-  booktitle={Interspeech},
-  year={2026}
+@misc{seo2026multiplescriptsmatterevaluating,
+      title={When Multiple Scripts Matter: Evaluating ASR in Clinical Settings}, 
+      author={Jean Seo and Minkyu Kim and Jeonguk Lee and Jisoo Jung and Wooseok Han and Eunho Yang},
+      year={2026},
+      eprint={2606.17826},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2606.17826}, 
 }
 ```
