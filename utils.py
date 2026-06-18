@@ -41,7 +41,7 @@ DATASET_ZIP_URLS = {
 
 def dataset_dir(lang):
     """Local directory where the dataset for `lang` lives once downloaded."""
-    return f"./interspeech26_multiscript_dataset_{lang}"
+    return f"./multiscript_dataset/lang_{lang}"
 
 
 def ensure_dataset(lang, data_root=None):
@@ -144,7 +144,7 @@ def parse_args():
     parser.add_argument("--device", type=str, default="cuda", help="Device to use (cuda or cpu)")
     parser.add_argument("--data_root", type=str, default="",
                         help="Dataset directory (contains labels.csv and audios/). Defaults to "
-                             "interspeech26_multiscript_dataset_<lang>; downloaded automatically if missing.")
+                             "multiscript_dataset/lang_<lang>; downloaded automatically if missing.")
     parser.add_argument("--output_dir", type=str, default="./results", help="Directory to save results")
 
     parser.add_argument("--medical", type=str, default="both", choices=["original", "target", "both"], help="Evaluation mode for MEDICAL tags")

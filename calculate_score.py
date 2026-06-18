@@ -21,7 +21,7 @@ def parse_score_args():
                         help="Directory containing the inference result CSVs")
     parser.add_argument("--data_root", type=str, default="",
                         help="Dataset directory (contains labels.csv). Defaults to "
-                             "interspeech26_multiscript_dataset_<lang>; downloaded automatically if missing.")
+                             "multiscript_dataset/lang_<lang>; downloaded automatically if missing.")
     parser.add_argument("--result_csv", type=str, default=None,
                         help="Explicit result CSV path. Defaults to the "
                              "Med-both_Num-both_Unit-both file for --model.")

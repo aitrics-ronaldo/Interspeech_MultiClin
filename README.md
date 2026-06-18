@@ -70,8 +70,8 @@ downloaded and extracted automatically on the first run of any script via
 [`gdown`](https://github.com/wkentaro/gdown). After extraction the per-language layout is:
 
 ```
-interspeech26_multiscript_dataset_<lang>/
-├── labels.csv      # src, metadata, multiscript (tagged reference), TTS (spoken form)
+multiscript_dataset/lang_<lang>/
+├── labels.csv      # src, multiscript (tagged reference), TTS (spoken form)
 └── audios/         # 316 synthesized WAV files (16 kHz), named <src>.wav
 ```
 
@@ -81,7 +81,7 @@ written as `<TAG>original,local</TAG>`, e.g. `<MEDICAL>brace,브레이스</MEDIC
 
 > **Note:** The per-language Google Drive links live in `DATASET_ZIP_URLS` in
 > [`utils.py`](utils.py). Alternatively, place a dataset manually at
-> `./interspeech26_multiscript_dataset_<lang>` (with `labels.csv` and `audios/`) to skip the download.
+> `./multiscript_dataset/lang_<lang>` (with `labels.csv` and `audios/`) to skip the download.
 
 ## Usage
 
@@ -110,7 +110,7 @@ Common options (see `utils.py` for the full list):
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `--lang` | `ko` | Target language: `ko`, `ja`, `zh`, or `ar`. |
-| `--data_root` | `./interspeech26_multiscript_dataset_<lang>` | Dataset directory (auto-downloaded if missing). |
+| `--data_root` | `./multiscript_dataset/lang_<lang>` | Dataset directory (auto-downloaded if missing). |
 | `--output_dir` | `./results` | Where result CSVs are written. |
 | `--medical` / `--number` / `--unit` | `both` | Per-tag evaluation mode: `original`, `target`, or `both`. |
 
