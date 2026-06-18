@@ -2,6 +2,16 @@
 
 [![arXiv](https://img.shields.io/badge/arXiv-2606.17826-b31b1b.svg)](https://arxiv.org/abs/2606.17826)
 
+[Jean Seo](mailto:jean.seo@di.ku.dk)<sup>1,2,\*</sup>,
+[Minkyu Kim](mailto:minkyu.kim@aitrics.com)<sup>1,\*</sup>,
+Jeonguk Lee<sup>1</sup>,
+Jisoo Jung<sup>1</sup>,
+Wooseok Han<sup>1</sup>,
+Eunho Yang<sup>1,3,†</sup>
+
+<sup>1</sup> AITRICS &nbsp;&nbsp; <sup>2</sup> University of Copenhagen &nbsp;&nbsp; <sup>3</sup> KAIST
+<br><sup>\*</sup> Equal contribution &nbsp;&nbsp; <sup>†</sup> Corresponding author
+
 Official code and dataset for the **MultiClin** benchmark, introduced in
 *"When Multiple Scripts Matter: Evaluating ASR in Clinical Settings"* (Interspeech 2026).
 Paper: [arxiv.org/abs/2606.17826](https://arxiv.org/abs/2606.17826)
