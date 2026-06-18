@@ -17,5 +17,5 @@ results/
 temp_audio.wav
 
 # Dataset (downloaded automatically via gdown)
-interspeech26_multiscript_dataset/
+interspeech26_multiscript_dataset*/
 *.zip

@@ -16,8 +16,8 @@ def main():
     torch.backends.cudnn.benchmark = False
     set_seed(42)
 
-    # Download the dataset if it is not already present locally.
-    data_root = ensure_dataset(args.data_root)
+    # Download the dataset for this language if it is not already present locally.
+    data_root = ensure_dataset(args.lang, args.data_root or None)
 
     target_col = 'multiscript'
     audio_dir = os.path.join(data_root, 'audios')
@@ -43,7 +43,7 @@ def main():
         max_new_tokens=65536,         # Allow long-form audio output.
     )
 
-    language = "Korean"
+    language = LANG_CONFIG[args.lang]['qwen_lang']
 
     if not os.path.exists(csv_path):
         print(f"Error: CSV file not found at {csv_path}")
@@ -110,7 +110,12 @@ def main():
             hyp_norm = normalize_text(hypothesis)
             ref_raw_norm = normalize_text(script_raw)
 
-            final_reference = clean_tags_by_priority(ref_raw_norm, hyp_norm, args.medical, args.number, args.unit)
+            # For Arabic, normalize the full reference/hypothesis before scoring.
+            if args.lang == 'ar':
+                hyp_norm = normalize_arabic(hyp_norm)
+                ref_raw_norm = normalize_arabic(ref_raw_norm)
+
+            final_reference = clean_tags_by_priority(ref_raw_norm, hyp_norm, args.medical, args.number, args.unit, args.lang)
 
             results_df['src'].append(src_raw)
             results_df['filename'].append(f"{real_file_name}.wav")

@@ -5,6 +5,7 @@ os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 import re, json, time
 import argparse
 import difflib
+import unicodedata
 import zipfile
 import tempfile
 import shutil
@@ -19,30 +20,52 @@ from tqdm import tqdm
 import torch
 
 
-# MultiClin dataset release. The archive extracts to a directory containing
-# `labels.csv` and an `audios/` folder of 316 WAV files.
-DATASET_DIR = "./interspeech26_multiscript_dataset"
-# Single-zip release on Google Drive. A standard sharing URL works (fuzzy match).
-DATASET_ZIP_URL = "https://drive.google.com/file/d/1hpFHn60g6sK_Eu0B3cNyjo6LPjsmssbS/view?usp=sharing"
+# Language configuration. MultiClin covers Korean, Japanese, Chinese, and Arabic.
+LANG_CONFIG = {
+    'ko': {'whisper_code': 'ko', 'qwen_lang': 'Korean'},
+    'ja': {'whisper_code': 'ja', 'qwen_lang': 'Japanese'},
+    'zh': {'whisper_code': 'zh', 'qwen_lang': 'Chinese'},
+    'ar': {'whisper_code': 'ar', 'qwen_lang': 'Arabic'},
+}
+
+# Per-language dataset releases on Google Drive. Each is a single zip that
+# extracts to a directory containing `labels.csv` and an `audios/` folder of
+# 316 WAV files. A standard sharing URL works (fuzzy match).
+DATASET_ZIP_URLS = {
+    'ko': "https://drive.google.com/file/d/1hpFHn60g6sK_Eu0B3cNyjo6LPjsmssbS/view?usp=drive_link",
+    'ja': "https://drive.google.com/file/d/13hI9gPKJ9o4WV7fCEuMR_1yUf0-ZDcGv/view?usp=drive_link",
+    'zh': "https://drive.google.com/file/d/1V2zMTQc-5Xgop8buq4V69reFUf0iQFtd/view?usp=drive_link",
+    'ar': "https://drive.google.com/file/d/1nbg1_DVIvDM7wi-AGAmihrlwivJYMaN2/view?usp=drive_link",
+}
 
 
-def ensure_dataset(data_root=DATASET_DIR, zip_url=DATASET_ZIP_URL):
-    """Ensure the MultiClin dataset is available at `data_root`.
+def dataset_dir(lang):
+    """Local directory where the dataset for `lang` lives once downloaded."""
+    return f"./interspeech26_multiscript_dataset_{lang}"
 
-    If `labels.csv` and `audios/` are not already present, the dataset zip is
-    downloaded from Google Drive with gdown and extracted. The archive may wrap
-    its contents in a top-level folder or not; both layouts are handled.
+
+def ensure_dataset(lang, data_root=None):
+    """Ensure the MultiClin dataset for `lang` is available locally.
+
+    Looks for labels.csv + audios/ under data_root (default: dataset_dir(lang)).
+    If missing, downloads the per-language zip from Google Drive with gdown and
+    extracts it. The archive may wrap its contents in a top-level folder or not;
+    both layouts are handled.
     """
+    if data_root is None:
+        data_root = dataset_dir(lang)
+
     labels_path = os.path.join(data_root, "labels.csv")
     audios_dir = os.path.join(data_root, "audios")
     if os.path.exists(labels_path) and os.path.isdir(audios_dir):
         return data_root
 
+    zip_url = DATASET_ZIP_URLS.get(lang, "")
     if not zip_url or zip_url.startswith("<"):
         raise RuntimeError(
-            "DATASET_ZIP_URL is not set in utils.py. Set it to the Google Drive "
-            "share link of the dataset zip, or place the dataset manually at "
-            f"{data_root} (with labels.csv and audios/)."
+            f"DATASET_ZIP_URLS['{lang}'] is not set in utils.py. Set it to the "
+            f"Google Drive share link of the {lang} dataset zip, or place the "
+            f"dataset manually at {data_root} (with labels.csv and audios/)."
         )
 
     try:
@@ -50,18 +73,20 @@ def ensure_dataset(data_root=DATASET_DIR, zip_url=DATASET_ZIP_URL):
     except ImportError:
         raise ImportError("gdown is required to download the dataset. Install it with: pip install gdown")
 
-    zip_path = os.path.join(tempfile.gettempdir(), "multiclin_dataset.zip")
-    print(f"Dataset not found at {data_root}. Downloading from Google Drive...")
+    zip_path = os.path.join(tempfile.gettempdir(), f"multiclin_dataset_{lang}.zip")
+    print(f"Dataset for '{lang}' not found at {data_root}. Downloading from Google Drive...")
     gdown.download(zip_url, zip_path, quiet=False, fuzzy=True)
 
     print("Extracting dataset...")
-    extract_tmp = tempfile.mkdtemp(prefix="multiclin_")
+    extract_tmp = tempfile.mkdtemp(prefix=f"multiclin_{lang}_")
     with zipfile.ZipFile(zip_path, "r") as zf:
         zf.extractall(extract_tmp)
 
-    # Locate the directory that directly contains labels.csv + audios/.
+    # Locate the directory that directly contains labels.csv + audios/,
+    # ignoring the __MACOSX sidecar that macOS Finder's "Compress" adds.
     src_dir = None
     for cur, dirs, files in os.walk(extract_tmp):
+        dirs[:] = [d for d in dirs if d != "__MACOSX"]
         if "labels.csv" in files and "audios" in dirs:
             src_dir = cur
             break
@@ -75,6 +100,18 @@ def ensure_dataset(data_root=DATASET_DIR, zip_url=DATASET_ZIP_URL):
         shutil.rmtree(data_root)
     shutil.move(src_dir, os.path.abspath(data_root))
 
+    # Strip macOS archive cruft (__MACOSX, .DS_Store, AppleDouble ._ files).
+    macosx = os.path.join(data_root, "__MACOSX")
+    if os.path.isdir(macosx):
+        shutil.rmtree(macosx, ignore_errors=True)
+    for cur, _dirs, files in os.walk(data_root):
+        for fn in files:
+            if fn == ".DS_Store" or fn.startswith("._"):
+                try:
+                    os.remove(os.path.join(cur, fn))
+                except OSError:
+                    pass
+
     shutil.rmtree(extract_tmp, ignore_errors=True)
     if os.path.exists(zip_path):
         os.remove(zip_path)
@@ -86,8 +123,8 @@ def ensure_dataset(data_root=DATASET_DIR, zip_url=DATASET_ZIP_URL):
 def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate ASR models on the MultiClin dataset")
 
-    parser.add_argument("--lang", type=str, default="ko", choices=['ko'],
-                        help="Target language (Korean)")
+    parser.add_argument("--lang", type=str, default="ko", choices=['ko', 'ja', 'zh', 'ar'],
+                        help="Target language (ko, ja, zh, ar)")
 
     parser.add_argument(
         "--model", type=str, default="gemini-2.5-flash",
@@ -105,9 +142,9 @@ def parse_args():
     )
     parser.add_argument("--api_key", type=str, default="", help="Gemini API key")
     parser.add_argument("--device", type=str, default="cuda", help="Device to use (cuda or cpu)")
-    parser.add_argument("--data_root", type=str, default=DATASET_DIR,
-                        help="Dataset directory (contains labels.csv and audios/). "
-                             "Downloaded automatically if missing.")
+    parser.add_argument("--data_root", type=str, default="",
+                        help="Dataset directory (contains labels.csv and audios/). Defaults to "
+                             "interspeech26_multiscript_dataset_<lang>; downloaded automatically if missing.")
     parser.add_argument("--output_dir", type=str, default="./results", help="Directory to save results")
 
     parser.add_argument("--medical", type=str, default="both", choices=["original", "target", "both"], help="Evaluation mode for MEDICAL tags")
@@ -123,41 +160,64 @@ def normalize_text(text):
     return text
 
 
-def calculate_local_metrics(target, window_text):
+def normalize_arabic(text):
+    """Normalize Arabic text for fairer matching (used only when lang == 'ar')."""
+    if not text:
+        return text
+
+    # Unicode normalization (NFKC).
+    text = unicodedata.normalize('NFKC', text)
+    # Remove Tashkeel (diacritics).
+    text = re.sub(r'[ً-ٰٟ]', '', text)
+    # Unify letter variants.
+    text = re.sub(r'[أإآ]', 'ا', text)   # Alef
+    text = re.sub(r'ة', 'ه', text)        # Teh Marbuta
+    text = re.sub(r'ى', 'ي', text)        # Alef Maqsura
+    return text
+
+
+def calculate_local_metrics(target, window_text, lang_code='ko'):
     """
     Locate the best-matching span of `target` inside `window_text` and return
     its ((CER distance, WER distance), match end offset).
 
-    The end offset is used to advance the search cursor so that subsequent tags
-    are matched against the remaining hypothesis.
+    For Arabic, matching and error scoring are performed on normalized text so
+    that orthographic variants do not unfairly inflate the distance.
     """
     if not target:
         return (0, 0), 0
     if not window_text:
         return (len(target), len(target.split())), 0
 
+    if lang_code == 'ar':
+        target_cmp = normalize_arabic(target)
+        window_cmp = normalize_arabic(window_text)
+    else:
+        target_cmp = target
+        window_cmp = window_text
+
     # Find the longest common substring to anchor the match (handles temporal misalignment).
-    matcher = difflib.SequenceMatcher(None, target, window_text)
-    match = matcher.find_longest_match(0, len(target), 0, len(window_text))
+    matcher = difflib.SequenceMatcher(None, target_cmp, window_cmp)
+    match = matcher.find_longest_match(0, len(target_cmp), 0, len(window_cmp))
 
     if match.size == 0:
-        return (len(target), len(target.split())), 0
+        return (len(target_cmp), len(target_cmp.split())), 0
 
     start_idx = match.b
-    end_idx = min(start_idx + len(target), len(window_text))
-    hyp_substring = window_text[start_idx:end_idx]
+    end_idx = min(start_idx + len(target_cmp), len(window_cmp))
+    hyp_substring = window_cmp[start_idx:end_idx]
 
     # Compute the local CER/WER within the aligned bounds only.
-    out_cer = process_characters(target, hyp_substring)
+    out_cer = process_characters(target_cmp, hyp_substring)
     cer_dist = out_cer.substitutions + out_cer.deletions + out_cer.insertions
 
-    out_wer = process_words(target, hyp_substring)
+    out_wer = process_words(target_cmp, hyp_substring)
     wer_dist = out_wer.substitutions + out_wer.deletions + out_wer.insertions
 
     return (cer_dist, wer_dist), match.b + match.size
 
 
-def clean_tags_by_priority(text, hypothesis, medical, number, unit):
+def clean_tags_by_priority(text, hypothesis, medical, number, unit, lang='ko'):
     """
     Resolve each multiscript tag in `text` to a single reference form.
 
@@ -197,8 +257,8 @@ def clean_tags_by_priority(text, hypothesis, medical, number, unit):
         window_size = 50
         search_window = hypothesis[search_cursor:search_cursor + window_size]
 
-        metrics_orig, end_orig = calculate_local_metrics(orig_part, search_window)
-        metrics_target, end_target = calculate_local_metrics(target_part, search_window)
+        metrics_orig, end_orig = calculate_local_metrics(orig_part, search_window, lang)
+        metrics_target, end_target = calculate_local_metrics(target_part, search_window, lang)
 
         # Tuple comparison: (CER, WER).
         if metrics_target < metrics_orig:

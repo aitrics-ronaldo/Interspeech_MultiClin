@@ -13,14 +13,15 @@ def parse_score_args():
     parser = argparse.ArgumentParser(
         description="Compute CER/WER on MultiClin across all script-evaluation modes"
     )
-    parser.add_argument("--lang", type=str, default="ko", choices=['ko'],
-                        help="Target language (Korean)")
+    parser.add_argument("--lang", type=str, default="ko", choices=['ko', 'ja', 'zh', 'ar'],
+                        help="Target language (ko, ja, zh, ar)")
     parser.add_argument("--model", type=str, required=True,
                         help="Model name as it appears in the result CSV filename")
     parser.add_argument("--results_dir", type=str, default="./results",
                         help="Directory containing the inference result CSVs")
-    parser.add_argument("--data_root", type=str, default=DATASET_DIR,
-                        help="Dataset directory (contains labels.csv). Downloaded automatically if missing.")
+    parser.add_argument("--data_root", type=str, default="",
+                        help="Dataset directory (contains labels.csv). Defaults to "
+                             "interspeech26_multiscript_dataset_<lang>; downloaded automatically if missing.")
     parser.add_argument("--result_csv", type=str, default=None,
                         help="Explicit result CSV path. Defaults to the "
                              "Med-both_Num-both_Unit-both file for --model.")
@@ -49,7 +50,7 @@ def main():
     print(f"Loaded {len(df)} hypotheses from {csv_path}")
 
     # Download the dataset if needed and load the reference labels.
-    data_root = ensure_dataset(args.data_root)
+    data_root = ensure_dataset(args.lang, args.data_root or None)
     label_path = os.path.join(data_root, "labels.csv")
     if not os.path.exists(label_path):
         print(f"Error: label CSV not found at {label_path}")
@@ -75,8 +76,14 @@ def main():
                     hyp_norm = matches[0]
 
                     ref_raw_norm = normalize_text(script_raw)
+
+                    # For Arabic, normalize the full reference/hypothesis before scoring.
+                    if args.lang == 'ar':
+                        hyp_norm = normalize_arabic(hyp_norm)
+                        ref_raw_norm = normalize_arabic(ref_raw_norm)
+
                     final_reference = clean_tags_by_priority(
-                        ref_raw_norm, hyp_norm, medical, number, unit
+                        ref_raw_norm, hyp_norm, medical, number, unit, args.lang
                     )
 
                     all_refs.append(final_reference)

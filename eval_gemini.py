@@ -5,11 +5,112 @@ from google import genai
 from google.genai import types
 
 
+# Zero-shot transcription prompt per language.
+GEMINI_PROMPTS = {
+    'ko': """
+                # Role
+                You are a professional medical stenographer. Your goal is to transcribe medical audio into a clear list of sentences in Korean.
+
+                # Context
+                The audio is a medical consultation. It contains professional Korean medical terms and patient symptoms.
+
+                # Task: Pure Transcription
+                - Transcribe the audio into Korean **word-for-word**.
+                - **Do NOT include speaker labels (e.g., "Staff", "Patient") or any prefixes.**
+                - Do NOT summarize, omit, or paraphrase.
+                - If a part is inaudible, use "[Inaudible]".
+                - **Provide the result as a list of sentences.**
+
+                # Output Format (JSON)
+                {
+                "transcript": [
+                    "첫 번째 문장...",
+                    "두 번째 문장...",
+                    "세 번째 문장..."
+                ]
+                }
+            """,
+    'ja': """
+                # Role
+                You are a professional medical stenographer. Your goal is to transcribe medical audio into a clear list of sentences in Japanese.
+
+                # Context
+                The audio is a medical consultation in Japanese. It contains professional Japanese medical terms (Kanji), disease names, and patient symptoms.
+
+                # Task: Pure Transcription
+                - Transcribe the audio into Japanese **word-for-word**.
+                - Ensure correct use of Kanji, Hiragana, and Katakana based on the context.
+                - **Do NOT include speaker labels (e.g., "Staff", "Patient") or any prefixes.**
+                - Do NOT summarize, omit, or paraphrase.
+                - If a part is inaudible, use "[Inaudible]".
+                - **Provide the result as a list of sentences.**
+
+                # Output Format (JSON)
+                {
+                "transcript": [
+                    "最初の文章が入ります。",
+                    "二番目の文章が入ります。",
+                    "三番目の文章が入ります。"
+                ]
+                }
+            """,
+    'zh': """
+                # Role
+                You are a professional medical stenographer. Your goal is to transcribe medical audio into a clear list of sentences in Chinese (Simplified).
+
+                # Context
+                The audio is a medical consultation in Chinese. It contains professional Chinese medical terms, diagnoses, and patient symptoms.
+
+                # Task: Pure Transcription
+                - Transcribe the audio into Chinese (Simplified) **word-for-word**.
+                - Ensure correct use of Chinese characters (Hanzi) based on the medical context.
+                - **Do NOT include speaker labels (e.g., "Staff", "Patient") or any prefixes.**
+                - Do NOT summarize, omit, or paraphrase.
+                - If a part is inaudible, use "[Inaudible]".
+                - **Provide the result as a list of sentences.**
+
+                # Output Format (JSON)
+                {
+                "transcript": [
+                    "这是第一句话。",
+                    "这是第二句话。",
+                    "这是第三句话。"
+                ]
+                }
+            """,
+    'ar': """
+                # Role
+                You are a professional medical stenographer. Your goal is to transcribe medical audio into a clear list of sentences in Arabic.
+
+                # Context
+                The audio is a medical consultation in Arabic. It contains specialized medical terminology and patient symptoms.
+                The speakers may use Modern Standard Arabic (MSA) or regional dialects.
+
+                # Task: Pure Transcription
+                - Transcribe the audio into Arabic **word-for-word**.
+                - Keep the transcription in the original dialect or style as spoken (Modern Standard Arabic or Ammiya).
+                - **Do NOT include speaker labels (e.g., "Staff", "Patient") or any prefixes.**
+                - Do NOT summarize, omit, or paraphrase.
+                - If a part is inaudible, use "[Inaudible]".
+                - **Provide the result as a list of sentences.**
+
+                # Output Format (JSON)
+                {
+                "transcript": [
+                    "الجملة الأولى هنا...",
+                    "الجملة الثانية هنا...",
+                    "الجملة الثالثة هنا..."
+                ]
+                }
+            """,
+}
+
+
 def main():
     args = parse_args()
 
-    # Download the dataset if it is not already present locally.
-    data_root = ensure_dataset(args.data_root)
+    # Download the dataset for this language if it is not already present locally.
+    data_root = ensure_dataset(args.lang, args.data_root or None)
 
     target_col = 'multiscript'
     audio_dir = os.path.join(data_root, 'audios')
@@ -31,29 +132,7 @@ def main():
         for f in tqdm(all_files, total=len(all_files)):
             client.files.delete(name=f.name)
 
-        prompt_text = """
-            # Role
-            You are a professional medical stenographer. Your goal is to transcribe medical audio into a clear list of sentences in Korean.
-
-            # Context
-            The audio is a medical consultation. It contains professional Korean medical terms and patient symptoms.
-
-            # Task: Pure Transcription
-            - Transcribe the audio into Korean **word-for-word**.
-            - **Do NOT include speaker labels (e.g., "Staff", "Patient") or any prefixes.**
-            - Do NOT summarize, omit, or paraphrase.
-            - If a part is inaudible, use "[Inaudible]".
-            - **Provide the result as a list of sentences.**
-
-            # Output Format (JSON)
-            {
-            "transcript": [
-                "첫 번째 문장...",
-                "두 번째 문장...",
-                "세 번째 문장..."
-            ]
-            }
-        """
+        prompt_text = GEMINI_PROMPTS[args.lang]
 
     except Exception as e:
         print(f"Error loading Gemini API: {e}")
@@ -144,7 +223,12 @@ def main():
             hyp_norm = normalize_text(hypothesis)
             ref_raw_norm = normalize_text(script_raw)
 
-            final_reference = clean_tags_by_priority(ref_raw_norm, hyp_norm, args.medical, args.number, args.unit)
+            # For Arabic, normalize the full reference/hypothesis before scoring.
+            if args.lang == 'ar':
+                hyp_norm = normalize_arabic(hyp_norm)
+                ref_raw_norm = normalize_arabic(ref_raw_norm)
+
+            final_reference = clean_tags_by_priority(ref_raw_norm, hyp_norm, args.medical, args.number, args.unit, args.lang)
 
             results_df['src'].append(src_raw)
             results_df['filename'].append(f"{src_raw.replace('/', '_')}.wav")

@@ -13,12 +13,14 @@ assume a single canonical transcript, so they systematically *underestimate* mod
 performance when the output is phonetically and semantically correct but orthographically
 divergent.
 
-**MultiClin** is a clinical ASR benchmark focusing on Korean. Each reference transcript
-tags script-switching entities (`MEDICAL`, `NUMBER`, `UNIT`) with both their original and
-local-script variants. We pair this with a **dynamic, multiscript-aware evaluation
-protocol** (Algorithm 1 in the paper) that, for each tagged entity, locally resolves which
-variant best matches the ASR hypothesis before computing CER/WER. Across diverse models,
-this consistently reveals higher performance than traditional single-label string matching.
+**MultiClin** is a clinical ASR benchmark. The paper presents an in-depth Korean case
+study; this release additionally provides **Japanese (`ja`), Chinese (`zh`), and Arabic
+(`ar`)** alongside Korean (`ko`). Each reference transcript tags script-switching entities
+(`MEDICAL`, `NUMBER`, `UNIT`) with both their original and local-script variants. We pair
+this with a **dynamic, multiscript-aware evaluation protocol** (Algorithm 1 in the paper)
+that, for each tagged entity, locally resolves which variant best matches the ASR
+hypothesis before computing CER/WER. Across diverse models, this consistently reveals
+higher performance than traditional single-label string matching.
 
 The dataset is synthesized from publicly available doctor–patient dialogues
 (ACI-Bench, PriMock57, MTS-Dialog) to comply with HIPAA restrictions on releasing
@@ -50,21 +52,23 @@ You only need the backend(s) for the model(s) you intend to run: `faster-whisper
 
 ## Dataset
 
-The dataset is downloaded and extracted automatically on the first run of any script via
-[`gdown`](https://github.com/wkentaro/gdown). After extraction the layout is:
+Each language is released as a separate zip. The dataset for the selected `--lang` is
+downloaded and extracted automatically on the first run of any script via
+[`gdown`](https://github.com/wkentaro/gdown). After extraction the per-language layout is:
 
 ```
-interspeech26_multiscript_dataset/
+interspeech26_multiscript_dataset_<lang>/
 ├── labels.csv      # src, metadata, multiscript (tagged reference), TTS (spoken form)
 └── audios/         # 316 synthesized WAV files (16 kHz), named <src>.wav
 ```
 
 The reference column used for evaluation is `multiscript`, where each tagged entity is
-written as `<TAG>original,local</TAG>`, e.g. `<MEDICAL>brace,브레이스</MEDICAL>`.
+written as `<TAG>original,local</TAG>`, e.g. `<MEDICAL>brace,브레이스</MEDICAL>` (ko) or
+`<MEDICAL>brace,ブレース</MEDICAL>` (ja). The `src` identifiers are shared across languages.
 
-> **Note:** Set `DATASET_ZIP_URL` in [`utils.py`](utils.py) to the Google Drive share link
-> of the dataset zip. Alternatively, place the dataset manually at
-> `./interspeech26_multiscript_dataset` (with `labels.csv` and `audios/`) to skip the download.
+> **Note:** The per-language Google Drive links live in `DATASET_ZIP_URLS` in
+> [`utils.py`](utils.py). Alternatively, place a dataset manually at
+> `./interspeech26_multiscript_dataset_<lang>` (with `labels.csv` and `audios/`) to skip the download.
 
 ## Usage
 
@@ -73,25 +77,27 @@ then **(2)** score it across all script-evaluation modes.
 
 ### 1. Run inference
 
-Each inference script writes `results/result_<model>_ko_Med-<m>_Num-<n>_Unit-<u>.csv`,
-containing the `src`, `hypothesis`, and resolved `best_reference` for every dialogue.
+Pass `--lang` to choose the language (`ko`, `ja`, `zh`, `ar`; default `ko`). Each script
+writes `results/result_<model>_<lang>_Med-<m>_Num-<n>_Unit-<u>.csv`, containing the `src`,
+`hypothesis`, and resolved `best_reference` for every dialogue.
 
 ```bash
-# Whisper (faster-whisper)
-python eval_whisper.py --model large-v3 --device cuda
+# Whisper (faster-whisper) — Japanese
+python eval_whisper.py --lang ja --model large-v3 --device cuda
 
-# Qwen3-ASR
-python eval_qwen3asr.py --model Qwen3-ASR-0.6B --device cuda
+# Qwen3-ASR — Chinese
+python eval_qwen3asr.py --lang zh --model Qwen3-ASR-0.6B --device cuda
 
-# Gemini
-python eval_gemini.py --model gemini-2.5-flash --api_key $GEMINI_API_KEY
+# Gemini — Arabic
+python eval_gemini.py --lang ar --model gemini-2.5-flash --api_key $GEMINI_API_KEY
 ```
 
 Common options (see `utils.py` for the full list):
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `--data_root` | `./interspeech26_multiscript_dataset` | Dataset directory (auto-downloaded if missing). |
+| `--lang` | `ko` | Target language: `ko`, `ja`, `zh`, or `ar`. |
+| `--data_root` | `./interspeech26_multiscript_dataset_<lang>` | Dataset directory (auto-downloaded if missing). |
 | `--output_dir` | `./results` | Where result CSVs are written. |
 | `--medical` / `--number` / `--unit` | `both` | Per-tag evaluation mode: `original`, `target`, or `both`. |
 
@@ -101,7 +107,7 @@ Common options (see `utils.py` for the full list):
 of `{original, target, both}` from a single result CSV (the hypotheses are mode-independent):
 
 ```bash
-python calculate_score.py --model large-v3
+python calculate_score.py --lang ja --model large-v3
 ```
 
 This prints a CER/WER table where each row corresponds to one evaluation mode, reproducing
