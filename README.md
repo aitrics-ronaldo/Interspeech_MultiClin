@@ -1,7 +1,10 @@
 # When Multiple Scripts Matter: Evaluating ASR in Clinical Settings
 
+[![arXiv](https://img.shields.io/badge/arXiv-2606.17826-b31b1b.svg)](https://arxiv.org/abs/2606.17826)
+
 Official code and dataset for the **MultiClin** benchmark, introduced in
 *"When Multiple Scripts Matter: Evaluating ASR in Clinical Settings"* (Interspeech 2026).
+Paper: [arxiv.org/abs/2606.17826](https://arxiv.org/abs/2606.17826)
 
 ## Overview
 
