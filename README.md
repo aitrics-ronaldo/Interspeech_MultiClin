@@ -14,7 +14,6 @@ Eunho Yang<sup>1,3,†</sup>
 
 Official code and dataset for the **MultiClin** benchmark, introduced in
 *"When Multiple Scripts Matter: Evaluating ASR in Clinical Settings"* (Interspeech 2026).
-Paper: [arxiv.org/abs/2606.17826](https://arxiv.org/abs/2606.17826)
 
 ## Overview
 
