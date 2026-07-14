@@ -67,6 +67,26 @@ def main():
             'hypothesis': []
         }
 
+    if args.suppress_hallucinations:
+        # Anti-hallucination decoding: Whisper models can fall into repetition
+        # loops on long audio (the previous segment is fed back as the prompt,
+        # so a repeated sentence reinforces itself across segments), inflating
+        # insertion errors.
+        decode_opts = dict(
+            condition_on_previous_text=False,
+            repetition_penalty=1.1,
+            no_repeat_ngram_size=5,
+            # Only takes effect with word_timestamps=True: skips long silences
+            # when a hallucination is suspected.
+            word_timestamps=True,
+            hallucination_silence_threshold=2.0,
+        )
+    else:
+        # The decoding used for the paper's reported numbers.
+        decode_opts = dict(
+            condition_on_previous_text=True,   # Keep context across segments.
+        )
+
     print("Starting evaluation...")
 
     for _, row in tqdm(df.iterrows(), total=len(df)):
@@ -98,7 +118,7 @@ def main():
                         min_silence_duration_ms=1000,  # Split only after >= 1s of silence.
                         speech_pad_ms=500              # Pad 0.5s around speech to protect trailing words.
                     ),
-                    condition_on_previous_text=True    # Keep context across segments.
+                    **decode_opts,
                 )
 
                 hypothesis = " ".join([segment.text for segment in segments])

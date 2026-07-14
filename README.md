@@ -15,6 +15,18 @@ Eunho Yang<sup>1,3,†</sup>
 Official code and dataset for the **MultiClin** benchmark, introduced in
 *"When Multiple Scripts Matter: Evaluating ASR in Clinical Settings"* (Interspeech 2026).
 
+## Updates
+
+- **2026-07** — Added a `--suppress_hallucinations` flag to `eval_whisper.py`. After the
+  camera-ready deadline, a per-utterance error analysis showed that Whisper-family models
+  are prone to repetition-loop hallucinations on long audio (the previous segment is fed
+  back as the decoding prompt, so a repeated sentence reinforces itself), which inflates
+  insertion errors. The flag decodes with anti-hallucination constraints
+  (`condition_on_previous_text=False`, repetition penalties, hallucination silence
+  skipping) and raises Whisper-family scores substantially — e.g., Whisper large-v3 on
+  MultiClin-ko improves from 86.2% to 90.4% (1 − CER). The **default decoding is
+  unchanged** and reproduces the numbers reported in the paper.
+
 ## Overview
 
 Automatic speech recognition (ASR) in non-English clinical settings is challenged by

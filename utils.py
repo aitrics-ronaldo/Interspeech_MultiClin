@@ -147,6 +147,14 @@ def parse_args():
                              "multiscript_dataset/lang_<lang>; downloaded automatically if missing.")
     parser.add_argument("--output_dir", type=str, default="./results", help="Directory to save results")
 
+    parser.add_argument("--suppress_hallucinations", action="store_true",
+                        help="eval_whisper.py only: decode with anti-hallucination constraints "
+                             "(condition_on_previous_text=False, repetition penalties). Whisper "
+                             "models are prone to repetition-loop hallucinations on long audio, "
+                             "which inflate insertion errors; this flag suppresses them and "
+                             "scores noticeably higher. The default decoding reproduces the "
+                             "numbers reported in the paper.")
+
     parser.add_argument("--medical", type=str, default="both", choices=["original", "target", "both"], help="Evaluation mode for MEDICAL tags")
     parser.add_argument("--number", type=str, default="both", choices=["original", "target", "both"], help="Evaluation mode for NUMBER tags")
     parser.add_argument("--unit", type=str, default="both", choices=["original", "target", "both"], help="Evaluation mode for UNIT tags")
